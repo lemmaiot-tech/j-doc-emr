@@ -63,14 +63,6 @@ const DepartmentManagement: React.FC = () => {
         </div>
         <div className="overflow-x-auto">
             <ul className="divide-y divide-y-200 dark:divide-gray-700">
-                {departments === undefined && (
-                    <li className="text-center py-10">
-                        <div className="flex justify-center items-center text-gray-500">
-                          <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
-                          Loading departments...
-                        </div>
-                    </li>
-                )}
                 {departments?.map((dept) => (
                 <li key={dept.id} className="py-4 flex justify-between items-center">
                     <div>
@@ -87,9 +79,6 @@ const DepartmentManagement: React.FC = () => {
                     </div>
                 </li>
                 ))}
-                {departments && departments.length === 0 && (
-                    <li className="text-center py-10 text-gray-500">No departments found.</li>
-                )}
             </ul>
         </div>
         </Card>

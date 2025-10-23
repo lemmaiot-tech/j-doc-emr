@@ -19,7 +19,6 @@ const ProfileSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const allDepartments = useLiveQuery(() => localDB.departments.toArray(), []);
-  const isAdmin = userProfile?.role === Role.Admin;
 
   useEffect(() => {
     if (userProfile) {
@@ -48,13 +47,9 @@ const ProfileSettings: React.FC = () => {
 
     const changes: Partial<Pick<UserProfile, 'displayName' | 'role' | 'departments'>> = {};
     if (displayName !== userProfile?.displayName) changes.displayName = displayName;
-    
-    // Only allow admins to change role and departments
-    if (isAdmin) {
-        if (role !== userProfile?.role) changes.role = role;
-        if (JSON.stringify(selectedDepartments) !== JSON.stringify(userProfile?.departments)) {
-            changes.departments = selectedDepartments;
-        }
+    if (role !== userProfile?.role) changes.role = role;
+    if (JSON.stringify(selectedDepartments) !== JSON.stringify(userProfile?.departments)) {
+        changes.departments = selectedDepartments;
     }
 
     if (Object.keys(changes).length === 0) {
@@ -94,14 +89,7 @@ const ProfileSettings: React.FC = () => {
           onChange={(e) => setDisplayName(e.target.value)}
           required
         />
-        <Select 
-            label="Role" 
-            id="role" 
-            value={role} 
-            onChange={(e) => setRole(e.target.value as Role)}
-            disabled={!isAdmin}
-            className={!isAdmin ? 'bg-gray-100 dark:bg-gray-700' : ''}
-        >
+        <Select label="Role" id="role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
           {ALL_ROLES.map((r) => (
             <option key={r} value={r}>
               {r}
@@ -117,8 +105,7 @@ const ProfileSettings: React.FC = () => {
             multiple
             value={selectedDepartments}
             onChange={handleDeptChange}
-            className={`h-32 ${!isAdmin ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
-            disabled={!isAdmin}
+            className="h-32"
           >
             {allDepartments?.map((d) => (
               <option key={d.id} value={d.id}>
@@ -126,8 +113,7 @@ const ProfileSettings: React.FC = () => {
               </option>
             ))}
           </Select>
-          {!isAdmin && <p className="mt-1 text-xs text-gray-500">Only Admins can change role and department assignments.</p>}
-          {isAdmin && <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd on Mac) to select multiple departments.</p>}
+          <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd on Mac) to select multiple departments.</p>
         </div>
 
         {error && <p className="text-sm text-red-500 text-center">{error}</p>}

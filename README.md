@@ -1,32 +1,20 @@
 <div align="center">
-<img width="1200" height="475" alt="LemmaIoT Cloud Solution" src="https://lemmaiot.com.ng/assets/images/meta-index.jpg" />
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
+# Run and deploy your AI Studio app
 
-# J DOC EMR
+This contains everything you need to run your app locally.
 
-J DOC (Jesuwosan Digital Outreach Clinic) is a robust, offline-first medical records application designed for reliable synchronization with a cloud database, ensuring seamless operation even in low-connectivity environments.
+View your app in AI Studio: https://ai.studio/apps/drive/1CnFQjakpZArMUwMPr1dBDOt3r-9pGwHA
 
-## Developed By
+## Run Locally
 
-This application was proudly developed by **LemmaIoT Cloud Solution**.
+**Prerequisites:**  Node.js
 
-- **Website:** [https://lemmaiot.com.ng](https://lemmaiot.com.ng)
 
-## Features
-
-- **Offline-First Architecture:** Continue working without an internet connection. All data is stored locally and syncs automatically when you're back online.
-- **Real-time Cloud Sync:** Data is seamlessly synchronized with a secure cloud database (Firebase Firestore), making it accessible across devices.
-- **Role-Based Access Control:** Different user roles (Admin, Doctor, Nurse, Pharmacist, etc.) have specific permissions and views.
-- **Patient Management:** Comprehensive patient records, including personal details, vital signs, and medical history.
-- **Departmental Modules:** Specialized modules for Pharmacy, Surgery, and Dental departments.
-- **Real-time Notifications:** Staff receive instant in-app alerts for important events like new prescriptions or updated surgery statuses.
-- **Data Export:** Export patient lists to CSV for reporting and analysis.
-- **Secure Authentication:** User authentication is handled securely via Firebase Auth.
-
-## Tech Stack
-
-- **Frontend:** React, TypeScript, Tailwind CSS
-- **Local Database:** Dexie.js (IndexedDB wrapper)
-- **Backend & Cloud Sync:** Firebase (Firestore, Firebase Auth)
-- **UI:** Custom components built for performance and accessibility.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

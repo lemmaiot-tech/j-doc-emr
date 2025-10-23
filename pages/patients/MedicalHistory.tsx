@@ -124,7 +124,7 @@ const MedicalHistory: React.FC<MedicalHistoryProps> = ({ patientUid }) => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {history?.map(entry => (
-                <tr key={entry.uid}>
+                <tr key={entry.id}>
                   <td className="py-2 pr-2 whitespace-nowrap">{entry.date}</td>
                   <td className="py-2 px-2">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300">

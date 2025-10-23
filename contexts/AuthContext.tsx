@@ -5,7 +5,6 @@ import { auth, db } from '../pages/patients/firebase';
 import { UserProfile, Role } from '../types';
 import { localDB } from '../services/localdb';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { fetchAllDataAndSeedLocalDB } from '../services/syncService';
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
+        // On auth change, fetch profile from Firestore and sync to local DB
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         
@@ -38,24 +38,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const profileData = userDoc.data() as UserProfile;
           await localDB.users.put(profileData);
         } else {
+            // If the user is authenticated but has no profile in Firestore,
+            // create a default one to prevent the app from getting stuck.
             console.warn("User profile not found in Firestore for UID:", firebaseUser.uid, ". Creating a default profile.");
             const defaultProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || 'no-email@example.com',
                 displayName: firebaseUser.email?.split('@')[0] || 'New User',
-                role: Role.Nurse,
+                role: Role.Nurse, // Assign a default, non-privileged role
                 departments: [],
             };
+            // Create the profile in Firestore
             await setDoc(userDocRef, defaultProfile);
+            // Also add it to the local DB so the UI updates immediately
             await localDB.users.put(defaultProfile);
         }
-        
-        // Fetch all cloud data and populate local DB
-        await fetchAllDataAndSeedLocalDB();
-
       } else {
         setUser(null);
-        await localDB.clearAllData(); // Clear ALL local data on logout
+        await localDB.users.clear(); // Clear user data on logout
       }
       setLoading(false);
     });
@@ -75,13 +75,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateProfile = async (data: Partial<Pick<UserProfile, 'displayName' | 'role' | 'departments'>>) => {
     if (!user || !userProfile) throw new Error("User not authenticated");
 
+    // 1. Update Firebase Auth Profile (only displayName supported directly)
     if (data.displayName && data.displayName !== userProfile.displayName) {
         await updateFirebaseProfile(user, { displayName: data.displayName });
     }
 
+    // 2. Update Firestore document
     const userDocRef = doc(db, 'users', user.uid);
     await setDoc(userDocRef, data, { merge: true });
 
+    // 3. Update local Dexie DB
     await localDB.users.update(user.uid, data);
   };
 
