@@ -61,6 +61,16 @@ const UserManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {users === undefined && (
+                <tr>
+                  <td colSpan={5} className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading users...
+                    </div>
+                  </td>
+                </tr>
+              )}
               {users?.map((user) => (
                 <tr key={user.uid}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{user.displayName}</td>
@@ -79,6 +89,11 @@ const UserManagement: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {users && users.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center py-10 text-gray-500">No users found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

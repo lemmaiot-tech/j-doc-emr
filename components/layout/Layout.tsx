@@ -2,7 +2,8 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import UndoToast from '../ui/UndoToast'; // Import the UndoToast component
+import UndoToast from '../ui/UndoToast';
+import NotificationContainer from '../ui/NotificationContainer'; // Import the NotificationContainer
 
 const Layout: React.FC = () => {
   return (
@@ -14,7 +15,8 @@ const Layout: React.FC = () => {
           <Outlet />
         </main>
       </div>
-      <UndoToast /> {/* Render the toast component here */}
+      <UndoToast />
+      <NotificationContainer /> {/* Render the notification container here */}
     </div>
   );
 };

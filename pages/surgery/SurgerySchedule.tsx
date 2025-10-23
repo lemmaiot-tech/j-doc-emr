@@ -9,6 +9,8 @@ import ConsentForm from './ConsentForm';
 import { Scissors, Hourglass, CheckCircle } from '../../components/icons/Icons';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../patients/firebase';
 
 const SurgerySchedule: React.FC = () => {
     const [consentModalOpen, setConsentModalOpen] = useState(false);
@@ -38,13 +40,19 @@ const SurgerySchedule: React.FC = () => {
     }
 
     const handleUpdateStatus = async (surgery: SurgicalProcedure, status: SurgeryStatus) => {
-        if (surgery.id) {
-            try {
-                await localDB.surgeries.update(surgery.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-            } catch(err) {
-                console.error("Failed to update surgery status", err);
-                alert("Failed to update status.");
-            }
+        const updatedData: { status: SurgeryStatus, updatedAt: Date, syncStatus: 'synced' | 'pending' } = { status, updatedAt: new Date(), syncStatus: 'pending' };
+        try {
+            // First, try to update Firestore for real-time notifications
+            await updateDoc(doc(db, 'surgeries', surgery.uid), {
+                status,
+                updatedAt: updatedData.updatedAt
+            });
+            updatedData.syncStatus = 'synced';
+        } catch(err) {
+            console.warn("Could not update Firestore, will sync later.", err);
+        } finally {
+            // Always update the local DB using uid
+            await localDB.surgeries.update(surgery.uid, updatedData);
         }
     };
 
@@ -118,8 +126,18 @@ const SurgerySchedule: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {surgeries === undefined && (
+                <tr>
+                  <td colSpan={6} className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading surgery schedule...
+                    </div>
+                  </td>
+                </tr>
+              )}
               {surgeries?.map((s) => (
-                <tr key={s.id}>
+                <tr key={s.uid}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{s.patientUid}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.procedureName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">

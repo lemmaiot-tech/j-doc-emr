@@ -8,6 +8,9 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../patients/firebase';
 
 const AddUser: React.FC = () => {
   const navigate = useNavigate();
@@ -43,29 +46,31 @@ const AddUser: React.FC = () => {
       return;
     }
 
-    // NOTE: This is a MOCK implementation for an offline-first approach.
-    // In a real application, user creation MUST happen on a secure backend
-    // (e.g., a Firebase Cloud Function) to create the user in Firebase Auth.
-    // Simply adding to the local DB will NOT make the user able to log in.
-    const newUser: UserProfile = {
-      uid: `local_${Date.now()}`, // Create a temporary local-only UID
-      displayName,
-      email,
-      role,
-      departments: selectedDepartments,
-    };
-
     try {
-      await localDB.users.add(newUser);
-      alert('User added locally successfully. Note: This user cannot log in until also created in the Firebase backend.');
+      // 1. Create the user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const newFirebaseUser = userCredential.user;
+
+      // 2. Create the user profile object for Firestore and local DB
+      const newUserProfile: UserProfile = {
+        uid: newFirebaseUser.uid,
+        displayName,
+        email,
+        role,
+        departments: selectedDepartments,
+      };
+
+      // 3. Save the user profile to Firestore
+      await setDoc(doc(db, 'users', newFirebaseUser.uid), newUserProfile);
+
+      // 4. Save the user profile to the local Dexie DB
+      await localDB.users.add(newUserProfile);
+
+      alert('User created successfully! They can now log in.');
       navigate('/admin/users');
     } catch (err: any) {
-      if (err.name === 'ConstraintError') {
-         setError('A user with this email or ID already exists in the local database.');
-      } else {
-         setError('Failed to add user to the local database.');
-      }
       console.error(err);
+      setError(err.message || 'Failed to create user.');
     } finally {
       setLoading(false);
     }
@@ -132,7 +137,7 @@ const AddUser: React.FC = () => {
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Add User'}
+            {loading ? 'Creating User...' : 'Add User'}
           </Button>
         </div>
       </form>

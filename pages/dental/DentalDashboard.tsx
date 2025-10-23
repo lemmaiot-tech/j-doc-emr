@@ -67,13 +67,11 @@ const DentalDashboard: React.FC = () => {
     }
 
     const handleUpdateStatus = async (procedure: DentalProcedure, status: DentalProcedureStatus) => {
-        if (procedure.id) {
-            try {
-                await localDB.dentalProcedures.update(procedure.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-            } catch(err) {
-                console.error("Failed to update dental procedure status", err);
-                alert("Failed to update status.");
-            }
+        try {
+            await localDB.dentalProcedures.update(procedure.uid, { status, updatedAt: new Date(), syncStatus: 'pending' });
+        } catch(err) {
+            console.error("Failed to update dental procedure status", err);
+            alert("Failed to update status.");
         }
     };
 
@@ -144,8 +142,18 @@ const DentalDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {procedures === undefined && (
+                <tr>
+                  <td colSpan={5} className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading procedures...
+                    </div>
+                  </td>
+                </tr>
+              )}
               {procedures?.map((p) => (
-                <tr key={p.id}>
+                <tr key={p.uid}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.procedureName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -192,7 +200,7 @@ const DentalDashboard: React.FC = () => {
         onConfirm={handleConfirmCancel}
         title="Cancel Procedure"
         message={`Are you sure you want to cancel the procedure "${selectedProcedure?.procedureName}" for patient ${selectedProcedure?.patientUid}?`}
-        confirmText="Yes, Cancel"
+        confirmText="Yes, Cancel Procedure"
       />
     </>
   );

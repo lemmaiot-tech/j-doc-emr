@@ -8,6 +8,8 @@ import { Prescription, PrescriptionStatus, Role } from '../../types';
 import Modal from '../../components/ui/Modal';
 import AddPrescriptionForm from './AddPrescriptionForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../patients/firebase';
 
 const PharmacyQueue: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,13 +37,19 @@ const PharmacyQueue: React.FC = () => {
   }
 
   const handleUpdateStatus = async (prescription: Prescription, status: PrescriptionStatus) => {
-    if (prescription.id) {
-        try {
-            await localDB.prescriptions.update(prescription.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-        } catch(err) {
-            console.error("Failed to update prescription status", err);
-            alert("Failed to update status.");
-        }
+    const updatedData: { status: PrescriptionStatus, updatedAt: Date, syncStatus: 'synced' | 'pending' } = { status, updatedAt: new Date(), syncStatus: 'pending' };
+    try {
+        // First, try to update Firestore for real-time notifications
+        await updateDoc(doc(db, 'prescriptions', prescription.uid), {
+            status,
+            updatedAt: updatedData.updatedAt
+        });
+        updatedData.syncStatus = 'synced';
+    } catch(err) {
+        console.warn("Could not update Firestore, will sync later.", err);
+    } finally {
+        // Always update the local DB using uid
+        await localDB.prescriptions.update(prescription.uid, updatedData);
     }
   }
 
@@ -109,8 +117,18 @@ const PharmacyQueue: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {prescriptions === undefined && (
+                <tr>
+                  <td colSpan={6} className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading prescriptions...
+                    </div>
+                  </td>
+                </tr>
+              )}
               {prescriptions?.map((p) => (
-                <tr key={p.id}>
+                <tr key={p.uid}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.drug}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.dosage}</td>

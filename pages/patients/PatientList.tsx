@@ -130,8 +130,18 @@ const PatientList: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {patients === undefined && (
+                <tr>
+                  <td colSpan={6} className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading patients...
+                    </div>
+                  </td>
+                </tr>
+              )}
               {patients?.map((patient) => (
-                <tr key={patient.id}>
+                <tr key={patient.uid}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                      <Link to={`/patients/${patient.uid}`} className="hover:underline text-primary-600 dark:text-primary-400">
                         {patient.firstName} {patient.lastName}
