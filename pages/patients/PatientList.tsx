@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { PlusCircle, Trash } from '../../components/icons/Icons';
+import { PlusCircle, Trash, Download } from '../../components/icons/Icons';
 import Modal from '../../components/ui/Modal';
 import AddPatientForm from './AddPatientForm';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
@@ -16,6 +16,7 @@ const PatientList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { deleteWithUndo } = useUndo();
   const { userProfile } = useAuth();
 
@@ -40,6 +41,64 @@ const PatientList: React.FC = () => {
     }
   };
 
+  const handleExportCSV = async () => {
+    if (!patients || patients.length === 0) {
+      alert("No patient data to export.");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const headers = [
+        "Patient UID", "First Name", "Last Name", "Date of Birth", "Gender",
+        "Phone Number", "Address", "Emergency Contact Name", "Emergency Contact Phone",
+        "Created At", "Updated At"
+      ];
+
+      const escapeCSV = (value: any): string => {
+        if (value == null) return '';
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvRows = patients.map(p => [
+        escapeCSV(p.uid),
+        escapeCSV(p.firstName),
+        escapeCSV(p.lastName),
+        escapeCSV(p.dateOfBirth),
+        escapeCSV(p.gender),
+        escapeCSV(p.phoneNumber),
+        escapeCSV(p.address),
+        escapeCSV(p.emergencyContactName),
+        escapeCSV(p.emergencyContactPhone),
+        escapeCSV(p.createdAt.toISOString()),
+        escapeCSV(p.updatedAt.toISOString()),
+      ].join(','));
+
+      const csvString = [headers.join(','), ...csvRows].join('\n');
+
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      link.setAttribute('download', `jdoc_patients_${timestamp}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Failed to export patient data:", error);
+      alert("An error occurred while exporting data. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const canDelete = userProfile?.role === Role.Admin || userProfile?.role === Role.Doctor;
 
   return (
@@ -47,10 +106,16 @@ const PatientList: React.FC = () => {
       <Card>
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold">Patient Records</h1>
-          <Button onClick={() => setIsModalOpen(true)}>
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Add Patient
-          </Button>
+          <div className="flex space-x-2">
+            <Button onClick={handleExportCSV} variant="secondary" disabled={isExporting || !patients || patients.length === 0}>
+                <Download className="w-5 h-5 mr-2" />
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
+            <Button onClick={() => setIsModalOpen(true)}>
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Add Patient
+            </Button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

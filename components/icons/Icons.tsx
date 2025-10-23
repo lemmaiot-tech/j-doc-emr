@@ -25,7 +25,7 @@ export const Scissors: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 );
 
 export const Tooth: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20.94 10.53a7.35 7.35 0 0 0-2.22-3.83 5.4 5.4 0 0 0-3.95-1.7 5.4 5.4 0 0 0-3.95 1.7 7.35 7.35 0 0 0-2.22 3.83 6.9 6.9 0 0 0-.36 4.25l.02 1.37a5.5 5.5 0 0 0 1.63 3.9h.1a5.5 5.5 0 0 0 3.9 1.62h0a5.5 5.5 0 0 0 3.9-1.62h.1a5.5 5.5 0 0 0 1.63-3.9l.02-1.37a6.9 6.9 0 0 0-.36-4.25Z"/><path d="M20 12h-4c-1.5 0-2.5 1-2.5 2.5s1 2.5 2.5 2.5h4"/><path d="M4 12h4c1.5 0 2.5 1 2.5 2.5S9.5 17 8 17H4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20.94 10.53a7.35 7.35 0 0 0-2.22-3.83 5.4 5.4 0 0 0-3.95-1.7 5.4 5.4 0 0 0-3.95 1.7 7.35 7.35 0 0 0-2.22 3.83 6.9 6.9 0 0 0-.36 4.25l.02 1.37a5.5 5.5 0 0 0 1.63 3.9h.1a5.5 5.5 0 0 0 3.9 1.62h0a5.5 5.5 0 0 0 3.9-1.62h.1a5.5 5.5 0 0 0 1.63-3.9l.02-1.37a6.9 6.9 0 0 0-.36-4.25Z"/><path d="M20 12h-4c-1.5 0-2.5 1-2.5 2.5s1 2.5 2.5 2.5h4"/><path d="M4 12h4c-1.5 0-2.5 1-2.5 2.5S9.5 17 8 17H4"/></svg>
 );
 
 export const LogOut: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -74,4 +74,8 @@ export const Hourglass: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 export const ArrowRight: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+);
+
+export const Download: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
 );

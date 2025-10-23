@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -34,13 +33,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // On auth change, fetch profile from Firestore and sync to local DB
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
+        
         if (userDoc.exists()) {
           const profileData = userDoc.data() as UserProfile;
           await localDB.users.put(profileData);
         } else {
-            // This case handles first-time login for a pre-created user
-            // Or can be used to create a default profile
-            console.warn("User profile not found in Firestore for UID:", firebaseUser.uid);
+            // If the user is authenticated but has no profile in Firestore,
+            // create a default one to prevent the app from getting stuck.
+            console.warn("User profile not found in Firestore for UID:", firebaseUser.uid, ". Creating a default profile.");
+            const defaultProfile: UserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || 'no-email@example.com',
+                displayName: firebaseUser.email?.split('@')[0] || 'New User',
+                role: Role.Nurse, // Assign a default, non-privileged role
+                departments: [],
+            };
+            // Create the profile in Firestore
+            await setDoc(userDocRef, defaultProfile);
+            // Also add it to the local DB so the UI updates immediately
+            await localDB.users.put(defaultProfile);
         }
       } else {
         setUser(null);
