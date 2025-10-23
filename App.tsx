@@ -2,7 +2,8 @@ import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from './contexts/SyncContext';
-import { UndoProvider } from './contexts/UndoContext'; // Import UndoProvider
+import { UndoProvider } from './contexts/UndoContext';
+import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Login from './pages/Login';
@@ -24,7 +25,7 @@ import ComingSoon from './components/ui/ComingSoon';
 function App() {
   return (
     <AuthProvider>
-      <UndoProvider> {/* Wrap app with UndoProvider */}
+      <UndoProvider>
         <HashRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -34,7 +35,9 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SyncProvider>
-                    <Layout />
+                    <NotificationProvider> {/* Add NotificationProvider here */}
+                      <Layout />
+                    </NotificationProvider>
                   </SyncProvider>
                 </ProtectedRoute>
               }

@@ -1,8 +1,8 @@
 
 import React, { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from './patients/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Logo from '../components/Logo';

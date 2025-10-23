@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -17,8 +18,10 @@ const ProfileSettings: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState('Notification' in window ? Notification.permission : 'default');
 
   const allDepartments = useLiveQuery(() => localDB.departments.toArray(), []);
+  const isAdmin = userProfile?.role === Role.Admin;
 
   useEffect(() => {
     if (userProfile) {
@@ -38,6 +41,16 @@ const ProfileSettings: React.FC = () => {
     }
     setSelectedDepartments(value);
   };
+  
+  const handleRequestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('This browser does not support desktop notification');
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +60,13 @@ const ProfileSettings: React.FC = () => {
 
     const changes: Partial<Pick<UserProfile, 'displayName' | 'role' | 'departments'>> = {};
     if (displayName !== userProfile?.displayName) changes.displayName = displayName;
-    if (role !== userProfile?.role) changes.role = role;
-    if (JSON.stringify(selectedDepartments) !== JSON.stringify(userProfile?.departments)) {
-        changes.departments = selectedDepartments;
+    
+    // Only allow admins to change role and departments
+    if (isAdmin) {
+        if (role !== userProfile?.role) changes.role = role;
+        if (JSON.stringify(selectedDepartments) !== JSON.stringify(userProfile?.departments)) {
+            changes.departments = selectedDepartments;
+        }
     }
 
     if (Object.keys(changes).length === 0) {
@@ -73,7 +90,7 @@ const ProfileSettings: React.FC = () => {
 
   return (
     <Card title="Profile Settings">
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-lg mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-lg mx-auto">
         <Input
           label="Email Address"
           id="email"
@@ -89,7 +106,14 @@ const ProfileSettings: React.FC = () => {
           onChange={(e) => setDisplayName(e.target.value)}
           required
         />
-        <Select label="Role" id="role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+        <Select 
+            label="Role" 
+            id="role" 
+            value={role} 
+            onChange={(e) => setRole(e.target.value as Role)}
+            disabled={!isAdmin}
+            className={!isAdmin ? 'bg-gray-100 dark:bg-gray-700' : ''}
+        >
           {ALL_ROLES.map((r) => (
             <option key={r} value={r}>
               {r}
@@ -105,7 +129,8 @@ const ProfileSettings: React.FC = () => {
             multiple
             value={selectedDepartments}
             onChange={handleDeptChange}
-            className="h-32"
+            className={`h-32 ${!isAdmin ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+            disabled={!isAdmin}
           >
             {allDepartments?.map((d) => (
               <option key={d.id} value={d.id}>
@@ -113,13 +138,34 @@ const ProfileSettings: React.FC = () => {
               </option>
             ))}
           </Select>
-          <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd on Mac) to select multiple departments.</p>
+          {!isAdmin && <p className="mt-1 text-xs text-gray-500">Only Admins can change role and department assignments.</p>}
+          {isAdmin && <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd on Mac) to select multiple departments.</p>}
+        </div>
+
+        <hr className="dark:border-gray-700"/>
+
+        <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Push Notifications</label>
+            {notificationPermission === 'granted' && (
+                <p className="text-sm text-green-600">Real-time push notifications are enabled for this device.</p>
+            )}
+            {notificationPermission === 'denied' && (
+                 <div>
+                    <p className="text-sm text-red-600">Push notifications are blocked by your browser.</p>
+                    <p className="text-xs text-gray-500 mt-1">You must enable them in your browser's site settings to receive alerts.</p>
+                </div>
+            )}
+             {notificationPermission === 'default' && (
+                <Button size="sm" type="button" variant="secondary" onClick={handleRequestNotificationPermission}>
+                    Enable Notifications
+                </Button>
+            )}
         </div>
 
         {error && <p className="text-sm text-red-500 text-center">{error}</p>}
         {success && <p className="text-sm text-green-500 text-center">{success}</p>}
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-4 mt-4 border-t dark:border-gray-700">
           <Button type="submit" disabled={loading}>
             {loading ? 'Saving...' : 'Save Changes'}
           </Button>

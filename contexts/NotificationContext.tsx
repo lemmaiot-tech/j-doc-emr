@@ -1,5 +1,6 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback, useRef } from 'react';
-import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../pages/patients/firebase';
 import { useAuth } from './AuthContext';
 import { Role, Notification } from '../types';
@@ -7,6 +8,7 @@ import { Role, Notification } from '../types';
 interface NotificationContextType {
   notifications: Notification[];
   removeNotification: (id: number) => void;
+  addNotification: (notification: Omit<Notification, 'id'>) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -60,7 +62,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             return;
         }
 
-        const surgeryQuery = query(collection(db, 'surgeries'));
+        const surgeryQuery = collection(db, 'surgeries');
         
         const unsubscribe = onSnapshot(surgeryQuery, (snapshot) => {
             if (isInitialSurgeryLoad.current) {
@@ -82,7 +84,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         return () => unsubscribe();
     }, [userProfile, addNotification]);
 
-    const value = { notifications, removeNotification };
+    const value = { notifications, removeNotification, addNotification };
 
     return (
         <NotificationContext.Provider value={value}>

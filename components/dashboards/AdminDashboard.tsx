@@ -3,20 +3,25 @@ import { useAuth } from '../../contexts/AuthContext';
 import Card from '../ui/Card';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
-import { Users, Home } from '../icons/Icons';
+import { Users, Home, RefreshCw } from '../icons/Icons';
 import Button from '../ui/Button';
 import { Link } from 'react-router-dom';
+import { useSync } from '../../contexts/SyncContext';
 
 const AdminDashboard: React.FC = () => {
   const { userProfile } = useAuth();
+  const { pendingChangesCount } = useSync();
   
   const userCount = useLiveQuery(() => localDB.users.count(), []);
+  const patientCount = useLiveQuery(() => localDB.patients.count(), []);
   const departmentCount = useLiveQuery(() => localDB.departments.count(), []);
-  const recentUsers = useLiveQuery(() => localDB.users.limit(5).toArray(), []);
+  const recentUsers = useLiveQuery(() => localDB.users.orderBy('uid').limit(5).toArray(), []);
 
   const stats = [
-    { title: 'Registered Staff', value: userCount ?? 0, icon: <Users className="w-8 h-8 text-primary-600" /> },
-    { title: 'Departments', value: departmentCount ?? 0, icon: <Home className="w-8 h-8 text-primary-600" /> },
+    { title: 'Registered Staff', value: userCount ?? '...', icon: <Users className="w-8 h-8 text-primary-600" /> },
+    { title: 'Total Patients', value: patientCount ?? '...', icon: <Users className="w-8 h-8 text-primary-600" /> },
+    { title: 'Departments', value: departmentCount ?? '...', icon: <Home className="w-8 h-8 text-primary-600" /> },
+    { title: 'Pending Syncs', value: pendingChangesCount ?? '...', icon: <RefreshCw className="w-8 h-8 text-primary-600" /> },
   ];
 
   return (

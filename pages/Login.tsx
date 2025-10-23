@@ -1,3 +1,4 @@
+
 import React, { useState, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, Navigate } from 'react-router-dom';
@@ -22,7 +23,12 @@ const Login: React.FC = () => {
     try {
       await login(email, password, rememberMe);
     } catch (err: any) {
-      setError(err.message || 'Failed to log in. Please check your credentials.');
+      // FIX: Provide a more specific error message for invalid credentials for Firebase v9+.
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('Invalid email or password. Please try again.');
+      } else {
+        setError(err.message || 'Failed to log in. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }

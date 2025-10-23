@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
@@ -8,6 +9,9 @@ import { Prescription, PrescriptionStatus, Role } from '../../types';
 import Modal from '../../components/ui/Modal';
 import AddPrescriptionForm from './AddPrescriptionForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../patients/firebase';
+import EmptyState from '../../components/ui/EmptyState';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const PharmacyQueue: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,13 +39,20 @@ const PharmacyQueue: React.FC = () => {
   }
 
   const handleUpdateStatus = async (prescription: Prescription, status: PrescriptionStatus) => {
-    if (prescription.id) {
-        try {
-            await localDB.prescriptions.update(prescription.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-        } catch(err) {
-            console.error("Failed to update prescription status", err);
-            alert("Failed to update status.");
-        }
+    const updatedData: { status: PrescriptionStatus, updatedAt: Date, syncStatus: 'synced' | 'pending' } = { status, updatedAt: new Date(), syncStatus: 'pending' };
+    try {
+        // First, try to update Firestore for real-time notifications
+        const prescrDocRef = doc(db, 'prescriptions', prescription.uid);
+        await updateDoc(prescrDocRef, {
+            status,
+            updatedAt: updatedData.updatedAt
+        });
+        updatedData.syncStatus = 'synced';
+    } catch(err) {
+        console.warn("Could not update Firestore, will sync later.", err);
+    } finally {
+        // Always update the local DB using uid
+        await localDB.prescriptions.update(prescription.uid, updatedData);
     }
   }
 
@@ -97,52 +108,70 @@ const PharmacyQueue: React.FC = () => {
           )}
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Drug</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dosage</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
-                <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {prescriptions?.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.drug}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.dosage}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>
-                        {p.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {p.syncStatus === 'synced' ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
-                    ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    {p.status === PrescriptionStatus.Pending && canUpdateStatus && (
-                        <>
-                            <Button size="sm" onClick={() => handleUpdateStatus(p, PrescriptionStatus.Dispensed)}>Dispense</Button>
-                            <Button size="sm" variant="secondary" onClick={() => handleUpdateStatus(p, PrescriptionStatus.NotAvailable)}>Not Available</Button>
-                        </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {prescriptions && prescriptions.length === 0 && (
+          {prescriptions === undefined ? (
+            <div className="text-center py-10">
+              <div className="flex justify-center items-center text-gray-500">
+                <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                Loading prescriptions...
+              </div>
+            </div>
+          ) : prescriptions.length === 0 ? (
+            <EmptyState
+              icon={<Pill className="w-8 h-8" />}
+              title="Pharmacy Queue is Empty"
+              message="No prescriptions are currently pending. Prescriptions added by doctors will appear here."
+              action={
+                canAddPrescription ? (
+                  <Button onClick={() => setIsModalOpen(true)}>
+                    <PlusCircle className="w-5 h-5 mr-2" />
+                    Add Prescription
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500">No prescriptions in the queue.</td>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Drug</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dosage</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
+                  <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {prescriptions.map((p) => (
+                  <tr key={p.uid}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.drug}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{p.dosage}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>
+                          {p.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {p.syncStatus === 'synced' ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
+                      ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      {p.status === PrescriptionStatus.Pending && canUpdateStatus && (
+                          <>
+                              <Button size="sm" onClick={() => handleUpdateStatus(p, PrescriptionStatus.Dispensed)}>Dispense</Button>
+                              <Button size="sm" variant="secondary" onClick={() => handleUpdateStatus(p, PrescriptionStatus.NotAvailable)}>Not Available</Button>
+                          </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </Card>
 

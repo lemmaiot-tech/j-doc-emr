@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
@@ -7,6 +8,8 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
 import Button from '../../components/ui/Button';
+import { db } from '../patients/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface AddPrescriptionFormProps {
   onSave: () => void;
@@ -47,13 +50,18 @@ const AddPrescriptionForm: React.FC<AddPrescriptionFormProps> = ({ onSave, onCan
     };
 
     try {
-      await localDB.prescriptions.add(newPrescription);
-      onSave();
+      const { syncStatus, ...firestoreData } = newPrescription;
+      // First, try to write to Firestore for real-time notifications
+      await setDoc(doc(db, 'prescriptions', newPrescription.uid), firestoreData);
+      newPrescription.syncStatus = 'synced'; // Optimistically set as synced
     } catch (err) {
-      console.error('Failed to add prescription:', err);
-      setError('Failed to save prescription.');
+      console.warn('Could not write to Firestore, saving as pending.', err);
+      // syncStatus remains 'pending'
     } finally {
+      // Always write to the local DB
+      await localDB.prescriptions.add(newPrescription);
       setLoading(false);
+      onSave();
     }
   };
 

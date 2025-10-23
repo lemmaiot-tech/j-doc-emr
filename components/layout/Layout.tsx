@@ -1,12 +1,16 @@
+
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import UndoToast from '../ui/UndoToast'; // Import the UndoToast component
+import UndoToast from '../ui/UndoToast';
+import NotificationContainer from '../ui/NotificationContainer';
+import FCMHandler from '../FCMHandler'; // Import the new handler
 
 const Layout: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+      <FCMHandler />
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -14,7 +18,8 @@ const Layout: React.FC = () => {
           <Outlet />
         </main>
       </div>
-      <UndoToast /> {/* Render the toast component here */}
+      <UndoToast />
+      <NotificationContainer />
     </div>
   );
 };

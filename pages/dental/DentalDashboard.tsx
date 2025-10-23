@@ -6,6 +6,7 @@ import { localDB } from '../../services/localdb';
 import { DentalProcedure, DentalProcedureStatus } from '../../types';
 import { Tooth, Hourglass, CheckCircle } from '../../components/icons/Icons';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
+import EmptyState from '../../components/ui/EmptyState';
 
 const DentalDashboard: React.FC = () => {
     const [confirmCancelModalOpen, setConfirmCancelModalOpen] = useState(false);
@@ -67,13 +68,11 @@ const DentalDashboard: React.FC = () => {
     }
 
     const handleUpdateStatus = async (procedure: DentalProcedure, status: DentalProcedureStatus) => {
-        if (procedure.id) {
-            try {
-                await localDB.dentalProcedures.update(procedure.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-            } catch(err) {
-                console.error("Failed to update dental procedure status", err);
-                alert("Failed to update status.");
-            }
+        try {
+            await localDB.dentalProcedures.update(procedure.uid, { status, updatedAt: new Date(), syncStatus: 'pending' });
+        } catch(err) {
+            console.error("Failed to update dental procedure status", err);
+            alert("Failed to update status.");
         }
     };
 
@@ -133,56 +132,66 @@ const DentalDashboard: React.FC = () => {
           <h1 className="text-xl font-bold">Dental Procedures</h1>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Procedure</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {procedures?.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.procedureName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>
-                        {p.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {p.syncStatus === 'synced' ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
-                    ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    {p.status === DentalProcedureStatus.Scheduled && (
-                        <>
-                            <Button size="sm" variant="secondary" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.InProgress)}>Start</Button>
-                            <Button size="sm" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.Completed)}>Complete</Button>
-                        </>
-                    )}
-                     {p.status === DentalProcedureStatus.InProgress && (
-                        <Button size="sm" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.Completed)}>Complete</Button>
-                    )}
-                    {(p.status === DentalProcedureStatus.Scheduled || p.status === DentalProcedureStatus.InProgress) && (
-                         <Button size="sm" variant="danger" onClick={() => handleCancelClick(p)}>Cancel</Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {procedures && procedures.length === 0 && (
+          {procedures === undefined ? (
+             <div className="text-center py-10">
+                <div className="flex justify-center items-center text-gray-500">
+                  <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                  Loading procedures...
+                </div>
+              </div>
+          ) : procedures.length === 0 ? (
+            <EmptyState
+                icon={<Tooth className="w-8 h-8" />}
+                title="No Dental Procedures"
+                message="There are no dental procedures scheduled at the moment."
+            />
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-500">No dental procedures scheduled.</td>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Procedure</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {procedures.map((p) => (
+                    <tr key={p.uid}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{p.patientUid}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.procedureName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>
+                            {p.status}
+                        </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {p.syncStatus === 'synced' ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
+                        ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                        )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        {p.status === DentalProcedureStatus.Scheduled && (
+                            <>
+                                <Button size="sm" variant="secondary" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.InProgress)}>Start</Button>
+                                <Button size="sm" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.Completed)}>Complete</Button>
+                            </>
+                        )}
+                        {p.status === DentalProcedureStatus.InProgress && (
+                            <Button size="sm" onClick={() => handleUpdateStatus(p, DentalProcedureStatus.Completed)}>Complete</Button>
+                        )}
+                        {(p.status === DentalProcedureStatus.Scheduled || p.status === DentalProcedureStatus.InProgress) && (
+                            <Button size="sm" variant="danger" onClick={() => handleCancelClick(p)}>Cancel</Button>
+                        )}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+          )}
         </div>
       </Card>
 
@@ -192,7 +201,7 @@ const DentalDashboard: React.FC = () => {
         onConfirm={handleConfirmCancel}
         title="Cancel Procedure"
         message={`Are you sure you want to cancel the procedure "${selectedProcedure?.procedureName}" for patient ${selectedProcedure?.patientUid}?`}
-        confirmText="Yes, Cancel"
+        confirmText="Yes, Cancel Procedure"
       />
     </>
   );

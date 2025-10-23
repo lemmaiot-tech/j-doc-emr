@@ -1,10 +1,12 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../services/localdb';
-import { syncAllData } from '../services/syncService';
+import { syncAllData, SYNC_CONFIG } from '../services/syncService';
 import { useAuth } from './AuthContext';
-// FIX: Import Dexie to enable casting for generic table access.
 import Dexie from 'dexie';
+import { db } from '../pages/patients/firebase';
+import { collection, onSnapshot, query, Timestamp } from 'firebase/firestore';
+
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
@@ -28,34 +30,25 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const pendingChangesCount = useLiveQuery(async () => {
     if (!user) return 0;
-
-    // These are the tables that have a `syncStatus` field for pending changes.
-    const syncableTableNames = [
-      'patients',
-      'prescriptions',
-      'surgeries',
-      'vitals',
-      'medicalHistory',
-      'dentalProcedures',
-    ];
+    
+    const syncableTableNames = SYNC_CONFIG.map(c => c.tableName);
 
     try {
       const counts = await Promise.all(
         syncableTableNames.map(tableName =>
-          // FIX: Cast localDB to Dexie to access the generic `table()` method.
           (localDB as Dexie).table(tableName).where('syncStatus').equals('pending').count()
         )
       );
-      return counts.reduce((sum, count) => sum + count, 0);
+      const deletionCount = await localDB.deletions_queue.where('syncStatus').equals('pending').count();
+      return counts.reduce((sum, count) => sum + count, 0) + deletionCount;
     } catch (e) {
       console.error("Could not query for pending changes count", e);
-      return 0; // Return 0 on error to avoid breaking the UI
+      return 0;
     }
-  }, [user], 0); // Re-run when user logs in/out, default to 0
+  }, [user], 0);
 
 
   const triggerSync = useCallback(async () => {
-    // Prevent multiple syncs at the same time or when offline
     if (status === 'syncing' || !navigator.onLine) return;
 
     setStatus('syncing');
@@ -68,11 +61,56 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setStatus('error');
     }
   }, [status]);
+  
+  // Set up real-time listeners for cloud changes
+  useEffect(() => {
+    if (!user || !isOnline) return;
+
+    console.log('Setting up real-time Firestore listeners...');
+
+    const unsubscribes = SYNC_CONFIG.map(({ tableName, collectionName, pk }) => {
+        const q = query(collection(db, collectionName));
+        return onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.doc.metadata.hasPendingWrites) {
+                    return; // Ignore local changes
+                }
+
+                // FIX: Cast localDB to Dexie to access the generic `table()` method.
+                const table = (localDB as Dexie).table(tableName);
+                const docId = change.doc.id;
+
+                if (change.type === "added" || change.type === "modified") {
+                    console.log(`Real-time update (${change.type}) for ${tableName}:`, docId);
+                    const docData = change.doc.data();
+                     // Convert Timestamps
+                    Object.keys(docData).forEach(key => {
+                        if (docData[key] instanceof Timestamp) {
+                            docData[key] = docData[key].toDate();
+                        }
+                    });
+                    const record = { ...docData, [pk]: docId, syncStatus: 'synced' };
+                    await table.put(record);
+                } else if (change.type === "removed") {
+                    console.log(`Real-time delete for ${tableName}:`, docId);
+                    await table.delete(docId);
+                }
+            });
+        }, (error) => {
+            console.error(`Listener error on ${collectionName}:`, error);
+        });
+    });
+
+    return () => {
+        console.log('Cleaning up Firestore listeners.');
+        unsubscribes.forEach(unsub => unsub());
+    };
+  }, [user, isOnline]);
+
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Automatically trigger a sync when connection is restored
       triggerSync();
     };
     const handleOffline = () => setIsOnline(false);
@@ -88,24 +126,16 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     let intervalId: number | undefined;
-
     if (user && isOnline) {
-      // Initial sync on login or when coming online
       triggerSync();
-
-      // Set up periodic sync
-      intervalId = window.setInterval(() => {
-        triggerSync();
-      }, SYNC_INTERVAL);
+      intervalId = window.setInterval(triggerSync, SYNC_INTERVAL);
     }
-
-    // Cleanup on logout or component unmount
     return () => {
       if (intervalId) {
         clearInterval(intervalId);
       }
     };
-  }, [user, isOnline, triggerSync]); // Rerun effect if user, online status, or triggerSync function changes
+  }, [user, isOnline, triggerSync]);
 
   const value = { status, lastSync, isOnline, pendingChangesCount: pendingChangesCount ?? 0, triggerSync };
 

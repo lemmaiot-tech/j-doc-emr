@@ -134,7 +134,7 @@ const VitalSigns: React.FC<VitalSignsProps> = ({ patientUid }) => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {vitalSignsHistory?.map(vitals => (
-                <tr key={vitals.id}>
+                <tr key={vitals.uid}>
                   <td className="py-2 pr-2 whitespace-nowrap">{vitals.createdAt.toLocaleString()}</td>
                   <td className="py-2 px-2">{vitals.bloodPressure}</td>
                   <td className="py-2 px-2">{vitals.heartRate}</td>

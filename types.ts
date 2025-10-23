@@ -1,3 +1,4 @@
+
 export enum Role {
   Admin = 'Admin',
   Doctor = 'Doctor',
@@ -29,10 +30,10 @@ export interface UserProfile {
   displayName: string;
   role: Role;
   departments: string[]; // array of department ids
+  fcmToken?: string; // For Push Notifications
 }
 
 export interface Patient {
-  id?: number;
   uid: string; // Unique patient identifier
   firstName: string;
   lastName: string;
@@ -54,7 +55,6 @@ export enum PrescriptionStatus {
 }
 
 export interface Prescription {
-  id?: number;
   uid: string;
   patientUid: string;
   drug: string;
@@ -74,7 +74,6 @@ export enum SurgeryStatus {
 }
 
 export interface SurgicalProcedure {
-  id?: number;
   uid: string;
   patientUid: string;
   procedureName: string;
@@ -88,7 +87,6 @@ export interface SurgicalProcedure {
 }
 
 export interface VitalSign {
-  id?: number;
   uid: string; // Unique vital sign record identifier
   patientUid: string;
   bloodPressure: string; // e.g., "120/80"
@@ -108,7 +106,6 @@ export enum MedicalHistoryType {
 }
 
 export interface MedicalHistoryEntry {
-  id?: number;
   uid: string; // Unique entry identifier
   patientUid: string;
   date: string; // YYYY-MM-DD
@@ -127,7 +124,6 @@ export enum DentalProcedureStatus {
 }
 
 export interface DentalProcedure {
-    id?: number;
     uid: string;
     patientUid: string;
     procedureName: string;
@@ -145,4 +141,12 @@ export interface UndoRecord {
   tableName: string;
   recordData: any; // The full data of the deleted record
   deletedAt: Date;
+}
+
+// Defines the structure for the real-time notification system
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
 }

@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { PlusCircle, Edit, Trash } from '../../components/icons/Icons';
+import { PlusCircle, Edit, Trash, Home } from '../../components/icons/Icons';
 import { Department } from '../../types';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import { useUndo } from '../../contexts/UndoContext';
 import { INITIAL_DEPARTMENTS } from '../../constants';
+import EmptyState from '../../components/ui/EmptyState';
 
 const DepartmentManagement: React.FC = () => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -18,9 +20,16 @@ const DepartmentManagement: React.FC = () => {
     // For now, we seed it and manage it locally.
     React.useEffect(() => {
         const seedDepartments = async () => {
-            const count = await localDB.departments.count();
-            if (count === 0) {
-                await localDB.departments.bulkAdd(INITIAL_DEPARTMENTS);
+            try {
+                const count = await localDB.departments.count();
+                if (count === 0) {
+                    // FIX: Use bulkPut instead of bulkAdd. bulkPut is an "upsert" operation,
+                    // which prevents "Key already exists" errors if this seeding logic
+                    // accidentally runs more than once (e.g., in React Strict Mode).
+                    await localDB.departments.bulkPut(INITIAL_DEPARTMENTS);
+                }
+            } catch (error) {
+                console.error("Failed to seed departments:", error);
             }
         };
         seedDepartments();
@@ -62,24 +71,45 @@ const DepartmentManagement: React.FC = () => {
             </Button>
         </div>
         <div className="overflow-x-auto">
-            <ul className="divide-y divide-y-200 dark:divide-gray-700">
-                {departments?.map((dept) => (
-                <li key={dept.id} className="py-4 flex justify-between items-center">
-                    <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{dept.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">ID: {dept.id}</p>
+            {departments === undefined ? (
+                 <div className="text-center py-10">
+                    <div className="flex justify-center items-center text-gray-500">
+                      <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                      Loading departments...
                     </div>
-                    <div className="space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}>
-                        <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(dept)}>
-                        <Trash className="w-4 h-4 text-red-500" />
-                    </Button>
-                    </div>
-                </li>
-                ))}
-            </ul>
+                 </div>
+            ) : departments.length === 0 ? (
+                <EmptyState
+                    icon={<Home className="w-8 h-8" />}
+                    title="No Departments Found"
+                    message="Add a department to begin organizing users and clinic functions."
+                    action={
+                        <Button>
+                            <PlusCircle className="w-5 h-5 mr-2" />
+                            Add Department
+                        </Button>
+                    }
+                />
+            ) : (
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {departments.map((dept) => (
+                        <li key={dept.id} className="py-4 flex justify-between items-center">
+                            <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">{dept.name}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">ID: {dept.id}</p>
+                            </div>
+                            <div className="space-x-2">
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}>
+                                    <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(dept)}>
+                                    <Trash className="w-4 h-4 text-red-500" />
+                                </Button>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
         </Card>
         <ConfirmationModal

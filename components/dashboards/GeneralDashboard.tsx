@@ -3,24 +3,26 @@ import { useAuth } from '../../contexts/AuthContext';
 import Card from '../ui/Card';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDB } from '../../services/localdb';
-import { Users, Pill, Scissors, TestTube2, ArrowRight, PlusCircle, Tooth } from '../icons/Icons';
+import { Users, Pill, Scissors, ArrowRight, PlusCircle, Tooth, Briefcase } from '../icons/Icons';
 import { Link } from 'react-router-dom';
 import Button from '../ui/Button';
+import { PrescriptionStatus, Role, SurgeryStatus } from '../../types';
 
 const GeneralDashboard: React.FC = () => {
   const { userProfile } = useAuth();
   
   const patientCount = useLiveQuery(() => localDB.patients.count(), []);
-  const prescriptionCount = useLiveQuery(() => localDB.prescriptions.count(), []);
-  const surgeryCount = useLiveQuery(() => localDB.surgeries.count(), []);
+  const pendingPrescriptions = useLiveQuery(() => localDB.prescriptions.where('status').equals(PrescriptionStatus.Pending).count(), []);
+  const scheduledSurgeries = useLiveQuery(() => localDB.surgeries.where('status').equals(SurgeryStatus.Scheduled).count(), []);
   const userCount = useLiveQuery(() => localDB.users.count(), []);
-
+  
+  const isAdmin = userProfile?.role === Role.Admin;
 
   const stats = [
-    { title: 'Total Patients', value: patientCount ?? '...', icon: <Users className="w-8 h-8 text-white" /> },
-    { title: 'Prescriptions', value: prescriptionCount ?? '...', icon: <Pill className="w-8 h-8 text-white" /> },
-    { title: 'Surgeries', value: surgeryCount ?? '...', icon: <Scissors className="w-8 h-8 text-white" /> },
-    { title: 'Registered Staff', value: userCount ?? '...', icon: <TestTube2 className="w-8 h-8 text-white" /> },
+    { title: 'Total Patients', value: patientCount ?? '...', icon: <Users className="w-8 h-8 text-white" />, path: '/patients' },
+    { title: 'Pending Prescriptions', value: pendingPrescriptions ?? '...', icon: <Pill className="w-8 h-8 text-white" />, path: '/pharmacy' },
+    { title: 'Scheduled Surgeries', value: scheduledSurgeries ?? '...', icon: <Scissors className="w-8 h-8 text-white" />, path: '/surgery' },
+    { title: 'Registered Staff', value: userCount ?? '...', icon: <Briefcase className="w-8 h-8 text-white" />, path: isAdmin ? '/admin/users' : undefined },
   ];
   
   const quickActions = [
@@ -42,19 +44,28 @@ const GeneralDashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="!p-0 overflow-hidden">
-            <div className="p-5 flex items-center bg-primary-600">
-               <div className="p-3 rounded-full bg-primary-500 mr-4">
-                  {stat.icon}
-               </div>
-               <div>
-                <p className="text-3xl font-bold text-white">{stat.value}</p>
-                <p className="text-sm font-medium text-primary-200">{stat.title}</p>
-               </div>
-            </div>
-          </Card>
-        ))}
+        {stats.map((stat, index) => {
+           const card = (
+            <Card className="!p-0 overflow-hidden shadow-lg">
+              <div className="p-5 flex items-center bg-primary-600">
+                 <div className="p-3 rounded-full bg-primary-500 mr-4">
+                    {stat.icon}
+                 </div>
+                 <div>
+                  <p className="text-3xl font-bold text-white">{stat.value}</p>
+                  <p className="text-sm font-medium text-primary-200">{stat.title}</p>
+                 </div>
+              </div>
+            </Card>
+          );
+          return stat.path ? (
+            <Link to={stat.path} key={index} className="block hover:scale-105 transition-transform duration-200">
+              {card}
+            </Link>
+          ) : (
+            <div key={index}>{card}</div>
+          )
+        })}
       </div>
 
       {patientCount === 0 ? (

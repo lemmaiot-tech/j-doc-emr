@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useRef } from 'react';
 import { localDB } from '../services/localdb';
 import { UndoRecord } from '../types';
-// Fix: Import Dexie to enable casting for transaction method.
 import Dexie from 'dexie';
 
 // The type for the toast state
@@ -53,29 +52,39 @@ export const UndoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       recordData: recordToDelete,
       deletedAt: new Date(),
     };
-
-    const primaryKey = recordToDelete.id ?? recordToDelete.uid;
+    
+    // Determine the primary key ('id' for departments, 'uid' for others)
+    const primaryKey = tableName === 'departments' ? recordToDelete.id : recordToDelete.uid;
     if (primaryKey === undefined) {
       throw new Error("Record must have an 'id' or 'uid' property to be deleted.");
     }
 
-    // Perform the "delete" (move to undo table) in a transaction
-    // Fix: Cast localDB to Dexie to access the 'transaction' method and use the generic `table()` method.
     const table = (localDB as Dexie).table(tableName);
-    const undoRecordId = await (localDB as Dexie).transaction('rw', localDB.undo_records, table, async () => {
+    // FIX: Cast localDB to Dexie to access the `transaction` method.
+    const undoRecordId = await (localDB as Dexie).transaction('rw', localDB.undo_records, table, localDB.deletions_queue, async () => {
       const addedId = await localDB.undo_records.add(undoRecord);
       await table.delete(primaryKey);
+      await localDB.deletions_queue.add({
+        collectionName: tableName,
+        docId: primaryKey,
+        syncStatus: 'pending'
+      });
       return addedId;
     });
 
     const onUndo = async () => {
         try {
-            // Restore the record in a transaction
-            // Fix: Cast localDB to Dexie to access the 'transaction' method and use the generic `table()` method.
             const tableToRestore = (localDB as Dexie).table(tableName);
-            await (localDB as Dexie).transaction('rw', localDB.undo_records, tableToRestore, async () => {
+            // FIX: Cast localDB to Dexie to access the `transaction` method.
+            await (localDB as Dexie).transaction('rw', localDB.undo_records, tableToRestore, localDB.deletions_queue, async () => {
                 await tableToRestore.add(recordToDelete);
                 await localDB.undo_records.delete(undoRecordId);
+                const deletionMarker = await localDB.deletions_queue
+                    .where({ collectionName: tableName, docId: primaryKey })
+                    .first();
+                if (deletionMarker && deletionMarker.id) {
+                    await localDB.deletions_queue.delete(deletionMarker.id);
+                }
             });
         } catch (error) {
             console.error("Undo failed:", error);
@@ -85,15 +94,14 @@ export const UndoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Set up the new toast
     const toastId = Date.now();
+    const recordName = tableName.endsWith('s') ? tableName.slice(0, -1) : tableName;
     setToast({
       id: toastId,
-      message: `${tableName.slice(0, -1)} has been deleted.`,
+      message: `The ${recordName} has been deleted.`,
       onUndo,
     });
     
-    // Set a timeout to automatically dismiss the toast
     timeoutRef.current = window.setTimeout(() => {
-        // Only dismiss if it's still the same toast
         setToast(currentToast => currentToast?.id === toastId ? null : currentToast);
     }, UNDO_TIMEOUT);
   }, [dismissToast]);

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -9,6 +10,9 @@ import ConsentForm from './ConsentForm';
 import { Scissors, Hourglass, CheckCircle } from '../../components/icons/Icons';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../patients/firebase';
+import EmptyState from '../../components/ui/EmptyState';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const SurgerySchedule: React.FC = () => {
     const [consentModalOpen, setConsentModalOpen] = useState(false);
@@ -38,13 +42,20 @@ const SurgerySchedule: React.FC = () => {
     }
 
     const handleUpdateStatus = async (surgery: SurgicalProcedure, status: SurgeryStatus) => {
-        if (surgery.id) {
-            try {
-                await localDB.surgeries.update(surgery.id, { status, updatedAt: new Date(), syncStatus: 'pending' });
-            } catch(err) {
-                console.error("Failed to update surgery status", err);
-                alert("Failed to update status.");
-            }
+        const updatedData: { status: SurgeryStatus, updatedAt: Date, syncStatus: 'synced' | 'pending' } = { status, updatedAt: new Date(), syncStatus: 'pending' };
+        try {
+            // First, try to update Firestore for real-time notifications
+            const surgeryDocRef = doc(db, 'surgeries', surgery.uid);
+            await updateDoc(surgeryDocRef, {
+                status,
+                updatedAt: updatedData.updatedAt
+            });
+            updatedData.syncStatus = 'synced';
+        } catch(err) {
+            console.warn("Could not update Firestore, will sync later.", err);
+        } finally {
+            // Always update the local DB using uid
+            await localDB.surgeries.update(surgery.uid, updatedData);
         }
     };
 
@@ -106,58 +117,68 @@ const SurgerySchedule: React.FC = () => {
           <h1 className="text-xl font-bold">Surgery Schedule</h1>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Procedure</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Consent</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {surgeries?.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{s.patientUid}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.procedureName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {s.consentSigned ? (
-                      <span className="text-green-600 font-semibold">Signed</span>
-                    ) : (
-                      <Button size="sm" variant="secondary" onClick={() => setConsentModalOpen(true)}>Sign Consent</Button>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(s.status)}`}>
-                        {s.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {s.syncStatus === 'synced' ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
-                    ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    {s.status === SurgeryStatus.Scheduled && canManageSchedule && (
-                        <>
-                            <Button size="sm" variant="secondary" onClick={() => handleCancelClick(s)}>Cancel</Button>
-                            <Button size="sm" onClick={() => handleUpdateStatus(s, SurgeryStatus.Completed)}>Mark as Done</Button>
-                        </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {surgeries && surgeries.length === 0 && (
+          {surgeries === undefined ? (
+            <div className="text-center py-10">
+              <div className="flex justify-center items-center text-gray-500">
+                <div className="w-8 h-8 border-4 border-dashed rounded-full animate-spin border-primary-600 mr-3"></div>
+                Loading surgery schedule...
+              </div>
+            </div>
+          ) : surgeries.length === 0 ? (
+            <EmptyState
+              icon={<Scissors className="w-8 h-8" />}
+              title="No Surgeries Scheduled"
+              message="There are currently no surgeries on the schedule. New procedures will appear here."
+            />
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500">No surgeries scheduled.</td>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Patient ID</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Procedure</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Consent</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sync Status</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {surgeries.map((s) => (
+                  <tr key={s.uid}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{s.patientUid}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.procedureName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {s.consentSigned ? (
+                        <span className="text-green-600 font-semibold">Signed</span>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => setConsentModalOpen(true)}>Sign Consent</Button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(s.status)}`}>
+                          {s.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {s.syncStatus === 'synced' ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Synced</span>
+                      ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      {s.status === SurgeryStatus.Scheduled && canManageSchedule && (
+                          <>
+                              <Button size="sm" variant="secondary" onClick={() => handleCancelClick(s)}>Cancel</Button>
+                              <Button size="sm" onClick={() => handleUpdateStatus(s, SurgeryStatus.Completed)}>Mark as Done</Button>
+                          </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </Card>
 
