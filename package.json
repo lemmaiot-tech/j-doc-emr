@@ -1,0 +1,31 @@
+{
+  "name": "j-doc-emr",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.9.4",
+    "react": "^19.2.0",
+    "dexie": "^4.2.1",
+    "react-dom": "^19.2.0",
+    "firebase": "^12.4.0",
+    "dexie-react-hooks": "^4.2.0",
+    "@firebase/app": "^0.14.4",
+    "@firebase/firestore": "^4.9.2",
+    "@firebase/storage": "^0.14.0",
+    "@firebase/messaging": "^0.12.23",
+    "@firebase/auth": "^1.11.0",
+    "html5-qrcode": "^2.3.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

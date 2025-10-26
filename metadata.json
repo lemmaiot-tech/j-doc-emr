@@ -1,0 +1,7 @@
+{
+  "name": "J DOC EMR",
+  "description": "J DOC (Jesuwosan Digital Outreach Clinic) is a robust, offline-first medical records application designed for reliable synchronization with a cloud database, ensuring seamless operation even in low-connectivity environments.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
